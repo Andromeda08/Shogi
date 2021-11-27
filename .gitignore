@@ -1,0 +1,5 @@
+.idea
+out
+game.save
+*.iml
+.DS_Store
