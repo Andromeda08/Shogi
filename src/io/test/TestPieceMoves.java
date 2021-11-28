@@ -28,7 +28,7 @@ public class TestPieceMoves {
         Field target = board.getField(5, 0);
         Piece expected = source.getPiece();
 
-        board.movePiece(source, target, 2);
+        board.movePiece(source, target, 2, 0);
 
         assertEquals(expected, target.getPiece());
     }
@@ -42,7 +42,7 @@ public class TestPieceMoves {
         Field target = board.getField(3, 0);
         Piece expected = source.getPiece();
 
-        board.movePiece(source, target, 2);
+        board.movePiece(source, target, 2, 0);
 
         assertEquals(expected, target.getPiece());
     }
@@ -53,7 +53,7 @@ public class TestPieceMoves {
         Field target = board.getField(6, 1);
         Piece expected = target.getPiece();
 
-        board.movePiece(source, target, 2);
+        board.movePiece(source, target, 2, 0);
 
         assertEquals(expected, target.getPiece());
     }
@@ -84,7 +84,7 @@ public class TestPieceMoves {
         Field target = board.getField(1, 0);
         Piece expected = source.getPiece();
 
-        board.movePiece(source, target, 1);
+        board.movePiece(source, target, 1, 0);
 
         assertEquals(expected, target.getPiece());
     }
@@ -96,7 +96,7 @@ public class TestPieceMoves {
         Piece expected = source.getPiece();
         target.setPiece(null);
 
-        board.movePiece(source, target, 1);
+        board.movePiece(source, target, 1, 0);
 
         assertEquals(expected, target.getPiece());
     }
@@ -107,7 +107,7 @@ public class TestPieceMoves {
         Field target = board.getField(1, 3);
         Piece expected = source.getPiece();
 
-        board.movePiece(source, target, 1);
+        board.movePiece(source, target, 1, 0);
 
         assertEquals(expected, target.getPiece());
     }
@@ -118,7 +118,7 @@ public class TestPieceMoves {
         Field target = board.getField(1, 4);
         Piece expected = source.getPiece();
 
-        board.movePiece(source, target, 1);
+        board.movePiece(source, target, 1, 0);
 
         assertEquals(expected, target.getPiece());
     }
@@ -129,7 +129,7 @@ public class TestPieceMoves {
         Field target = board.getField(1, 4);
         Piece expected = source.getPiece();
 
-        board.movePiece(source, target, 1);
+        board.movePiece(source, target, 1, 0);
 
         assertEquals(expected, target.getPiece());
     }
@@ -140,7 +140,7 @@ public class TestPieceMoves {
         Field target = board.getField(1, 4);
         Piece expected = source.getPiece();
 
-        board.movePiece(source, target, 1);
+        board.movePiece(source, target, 1, 0);
 
         assertEquals(expected, target.getPiece());
     }
@@ -152,7 +152,7 @@ public class TestPieceMoves {
         Piece expected = source.getPiece();
         board.getField(2, 6).setPiece(null);
 
-        board.movePiece(source, target, 1);
+        board.movePiece(source, target, 1, 0);
 
         assertEquals(expected, target.getPiece());
     }
@@ -250,7 +250,7 @@ public class TestPieceMoves {
         board.getField(0, 2).setPiece(null);
         source.setPiece(piece);
 
-        board.movePiece(source, target, 1);
+        board.movePiece(source, target, 1, 0);
 
         assertTrue(piece.isPromoted());
     }

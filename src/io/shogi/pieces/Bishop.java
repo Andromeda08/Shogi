@@ -18,7 +18,6 @@ public class Bishop extends Piece {
                 return true;
         }
         if (Math.abs(current.row() - target.row()) == Math.abs(current.col() - target.col())) {
-            // TODO: Holy shit fix this cause it doesn't work
             // Decide direction
             int rowDir = target.row() > current.row() ? 1 : -1;
             int colDir = target.col() > current.col() ? 1 : -1;

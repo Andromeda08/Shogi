@@ -35,7 +35,8 @@ public class Shogi implements Serializable {
 
     // Game state
     public Board board = new Board();
-    public int turn = 2;
+    public int turn  = 2;
+    public int check = 0;
 
     // Quick launch for debug
     public static void main(String[] args) {
@@ -50,14 +51,15 @@ public class Shogi implements Serializable {
     }
 
     // Used when loading a saved game
-    public Shogi(Board b, int t) {
+    public Shogi(Board savedBoard, int savedTurn, int savedCheck) {
         initializeFrame();
         initializeGame();
         updateBoard();
         frame.setVisible(true);
 
-        this.board = b;
-        this.turn = t;
+        this.board = savedBoard;
+        this.turn  = savedTurn;
+        this.check = savedCheck;
         updateBoard();
     }
 
@@ -68,6 +70,7 @@ public class Shogi implements Serializable {
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
                 if (board.getField(i, j).getPiece() != null) {
+                    fields[i][j].setBackground(COLOR_BOARD);
                     fields[i][j].setText(board.getField(i, j).getPiece().getSymbol());
                     if (board.getField(i, j).getPiece().getOwner() == 1)
                         fields[i][j].setForeground(Color.RED);
@@ -158,10 +161,9 @@ public class Shogi implements Serializable {
                     public void actionPerformed(ActionEvent e) {
                         for (int k = 0; k < 40; k++) {
                             if (e.getSource() == handBtns[o][k]) {
-                                if (board.getHand(o).getPiece(k).getOwner() != turn) {
+                                if (board.getHand(o).getPiece(k).getOwner() == turn) {
                                     Field tempField = new Field(99, 99);
                                     Piece dropPiece = board.getHand(o).getPiece(k);
-                                    dropPiece.setOwner(o + 1);
                                     tempField.setPiece(dropPiece);
 
                                     selected = tempField;
@@ -180,6 +182,7 @@ public class Shogi implements Serializable {
                 handPanels[i].add(handBtns[i][j]);
             }
         }
+
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
                 JButton b = new JButton();
@@ -191,7 +194,6 @@ public class Shogi implements Serializable {
                 b.addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        // TODO: Allow the deselection of pieces, this fixes related bg color issue.
                         for (int i = 0; i < 9; i++) {
                             for (int j = 0; j < 9; j++) {
                                 if (e.getSource() == fields[i][j]) {
@@ -214,8 +216,8 @@ public class Shogi implements Serializable {
                                     }
                                     else {
                                         if (selected != null) {
-                                            board.movePiece(selected, board.getField(i, j), turn);
-                                            passTurn();
+                                            boolean success = board.movePiece(selected, board.getField(i, j), turn, check);
+                                            if (success) passTurn();
                                         }
                                         selected = null;
                                         updateBoard();
@@ -238,6 +240,7 @@ public class Shogi implements Serializable {
             ObjectOutputStream out = new ObjectOutputStream(fos);
             out.writeObject(board);
             out.writeObject(turn);
+            out.writeObject(check);
             out.close();
             fos.close();
         }

@@ -98,9 +98,10 @@ public class MainMenu extends JFrame {
             ObjectInputStream in = new ObjectInputStream(fis);
             Board savedBoard = (Board) in.readObject();
             int savedTurn = (int) in.readObject();
+            int savedCheck = (int) in.readObject();
             in.close();
             fis.close();
-            return new Shogi(savedBoard, savedTurn);
+            return new Shogi(savedBoard, savedTurn, savedCheck);
         } catch (IOException | ClassNotFoundException e) {
             int result = JOptionPane.showConfirmDialog(null, "Failed to load saved game.\nStart new game?", "Fatal error :)", JOptionPane.YES_NO_OPTION, JOptionPane.ERROR_MESSAGE);
             switch (result) {
