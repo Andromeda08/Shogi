@@ -3,14 +3,29 @@ package io.shogi.pieces;
 import io.shogi.core.Board;
 import io.shogi.core.Field;
 import io.shogi.core.Piece;
+import io.shogi.core.PieceType;
 
+/**
+ * Gyalog
+ */
 public class Pawn extends Piece {
+    /**
+     * Gyalog constructor
+     * @param owner Tulajdonos
+     */
     public Pawn(int owner) {
         super(owner);
         setSymbol("P");
-        setType("Pawn");
+        setType(PieceType.FUHYO);
     }
 
+    /**
+     * Pawn movement code
+     * @param current A mező, ahol az egység tartózkodik.
+     * @param target A mező, ahova szeretnénk lépni.
+     * @param board A játéktábla.
+     * @return Tud-e lépni az egység.
+     */
     public boolean canMove(Field current, Field target, Board board) {
         // Tokin movement
         if (promoted) {
@@ -49,5 +64,19 @@ public class Pawn extends Piece {
         }
 
         return false;
+    }
+
+    @Override
+    public void promote() {
+        setType(PieceType.TOKIN);
+        setSymbol("P!");
+        promoted = true;
+    }
+
+    @Override
+    public void demote() {
+        setType(PieceType.FUHYO);
+        setSymbol("P");
+        promoted = false;
     }
 }

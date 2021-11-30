@@ -3,14 +3,29 @@ package io.shogi.pieces;
 import io.shogi.core.Board;
 import io.shogi.core.Field;
 import io.shogi.core.Piece;
+import io.shogi.core.PieceType;
 
+/**
+ * Futó
+ */
 public class Bishop extends Piece {
+    /**
+     * Futó constructor
+     * @param owner Tulajdonos
+     */
     public Bishop(int owner) {
         super(owner);
         setSymbol("B");
-        setType("Bishop");
+        setType(PieceType.KAKUGYO);
     }
 
+    /**
+     * Bishop movement code
+     * @param current A mező, ahol az egység tartózkodik.
+     * @param target A mező, ahova szeretnénk lépni.
+     * @param board A játéktábla.
+     * @return Léphet-e a célpontra.
+     */
     @Override
     public boolean canMove(Field current, Field target, Board board) {
         if (promoted) {

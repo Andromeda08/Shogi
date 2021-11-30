@@ -3,14 +3,29 @@ package io.shogi.pieces;
 import io.shogi.core.Board;
 import io.shogi.core.Field;
 import io.shogi.core.Piece;
+import io.shogi.core.PieceType;
 
+/**
+ * Bástya
+ */
 public class Rook extends Piece {
+    /**
+     * Bástya constructor
+     * @param owner Tulajdonos
+     */
     public Rook(int owner) {
         super(owner);
         setSymbol("R");
-        setType("Rook");
+        setType(PieceType.HISHA);
     }
 
+    /**
+     * Rook movement code
+     * @param current A mező, ahol az egység tartózkodik.
+     * @param target A mező, ahova szeretnénk lépni.
+     * @param board A játéktábla.
+     * @return Tud-e lépni az egység.
+     */
     @Override
     public boolean canMove(Field current, Field target, Board board) {
         if (promoted)

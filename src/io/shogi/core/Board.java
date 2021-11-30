@@ -2,23 +2,30 @@ package io.shogi.core;
 
 import io.shogi.pieces.*;
 
+import javax.print.attribute.standard.DateTimeAtCompleted;
 import java.io.Serializable;
 import java.util.ArrayList;
 
+/**
+ * Shogi Tábla
+ */
 public class Board implements Serializable {
-    private final Field[][] board = new Field[9][9];
+    // Enable logging in console?
+    private final boolean log = true;
+
+    // Board size
+    private final int BOARD_SIZE = 9;
+
+    // 9x9 Grid of fields on the board
+    private final Field[][] board = new Field[BOARD_SIZE][BOARD_SIZE];
+
+    // Player hands
     private final Hand[] hands = { new Hand(1), new Hand(2) };
 
-    /* L N S G K G S N L
-     *   B           R
-     * P P P P P P P P P
-     *
-     *
-     * P P P P P P P P P
-     *   B           R
-     * L N G S K G S N L
+    /**
+     * Board class constructor
+     * A játékmenethez szükséges táblát állítja elő.
      */
-
     public Board() {
         // Initialize Fields
         for(int i = 0; i < 9; i++) {
@@ -26,7 +33,248 @@ public class Board implements Serializable {
                 board[i][j] = new Field(i, j);
             }
         }
+        // Setup Board
+        setupBoard();
+    }
 
+    /**
+     * Egy egység léptetéséért felős függvény. (Lépés vagy elhelyezés)
+     * @param s Ahonnan mozgatni szeretnénk az egységet.
+     * @param t Ahová szeretnénk mozgatni az egységet.
+     * @param turn Soron lévő játékos.
+     * @return Sikeres volt-e a lépés.
+     */
+    public boolean movePiece(Field s, Field t, int turn) {
+        if (s.getPiece() != null) {
+            Piece p = s.getPiece();
+
+            boolean isOwner = p.getOwner() == turn;
+            boolean isMove = s.col() != t.col() || s.row() != t.row();
+            boolean canMove = p.canMove(s, t, this);
+            boolean isPromotionRow = (t.row() <= 2 && p.getOwner() == 2) || (t.row() >= 6 && p.getOwner() == 1);
+            boolean isDrop = (s.col() == 99 && s.row() == 99);
+
+            if (isOwner && isMove) {
+                if (canMove) {
+                    // Promotion
+                    if (isPromotionRow) {
+                        s.getPiece().promote();
+                    }
+                    // Capture
+                    if (t.getPiece() != null) {
+                        if (t.getPiece().getType() == PieceType.OSHO) {
+                            System.out.println("Player [" + turn + "] wins!");
+                        }
+                        if (t.getPiece().getOwner() != p.getOwner()) {
+                            t.getPiece().setOwner(turn);
+                            hands[p.getOwner() - 1].addPiece(t.getPiece());
+                        }
+                    }
+
+                    s.setPiece(null);
+                    t.setPiece(p);
+
+                    if(isCheck(turn)) {
+                        hasLegalMoves(turn);
+                    }
+
+                    if (isCheck((turn == 2) ? 1: 2)) {
+                        System.out.println("You are in check, make a good move you fuck");
+                        s.setPiece(p);
+                        t.setPiece(null);
+                        return false;
+                    }
+
+                    return true;
+                }
+            }
+            // Is the move a drop?
+            if (isDrop) {
+                if (log) System.out.println("Dropping to [" + t.row() + ";" + t.col() + "]");
+
+                // Check if we are dropping on an already occupied field
+                if (t.getPiece() != null) {
+                    System.out.println("Illegal drop: Field already occupied.");
+                    s.setPiece(null);
+                    hands[turn-1].addPiece(p);
+                    return false;
+                }
+                else {
+                    t.setPiece(p);
+
+                    boolean isCheck = isCheck(turn);
+                    boolean isPawn = p.getType() == PieceType.FUHYO;
+
+                    t.setPiece(null);
+
+                    // Check if there is already a pawn in the column where we are dropping
+                    if (isPawn) {
+                        for (int i = 0; i < 9; i++) {
+                            if (board[i][t.col()].getPiece() != null) {
+                                if (board[i][t.col()].getPiece().getType() == PieceType.FUHYO) {
+                                    if (board[i][t.col()].getPiece().getOwner() == p.getOwner()) {
+                                        s.setPiece(null);
+                                        hands[turn-1].addPiece(p);
+
+                                        if (log) System.out.println("Illegal drop: Pawn already in column.");
+                                        return false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Check if drop results in immediate check
+                    if (isCheck) {
+                        s.setPiece(null);
+                        hands[turn-1].addPiece(p);
+
+                        if (log) System.out.println("Illegal drop: Results in check.");
+                        return false;
+                    }
+
+                    // Drop was legal
+                    if (isPromotionRow) p.promote();
+                    s.setPiece(null);
+                    t.setPiece(p);
+
+                    if (log) System.out.println("Successful drop.");
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Megkeresei az mezőt, amelyen tartózkodik az ellenséges király.
+     * @param turn Soron lévő játékos.
+     * @return A mező, amelyen tartózkodik az ellenséges király.
+     */
+    private Field findEnemyKing(int turn) {
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                if (board[i][j].getPiece() != null) {
+                    if (board[i][j].getPiece().getOwner() != turn && board[i][j].getPiece().getType() == PieceType.OSHO) {
+                        return board[i][j];
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean hasLegalMoves(int turn) {
+        if (!isCheck(turn)) {
+            return true;
+        }
+
+        Field f = findEnemyKing(turn);
+
+        if (f != null) {
+            Piece king = f.getPiece();
+            ArrayList<Field> legalKingMoves = new ArrayList<>();
+            ArrayList<Field> attackers = new ArrayList<>();
+            ArrayList<Boolean> isAttacked = new ArrayList<>();
+
+            // Get valid king moves
+            for (int dr = 0; dr < 3; dr++) {
+                for (int dc = 0; dc < 3; dc++) {
+                    if (f.row() + dr - 1 >= 0 && f.col() + dc -1 >= 0 && f.row() + dr - 1 < 9 && f.col() + dc - 1 < 9) {
+                        Field target = board[f.row()+dr-1][f.col()+dc-1];
+                        if (king.canMove(f, target, this)) {
+                            legalKingMoves.add(target);
+                        }
+                    }
+                }
+            }
+
+            // Check for attackers at valid moves
+            for (Field t : legalKingMoves) {
+                // Temporarily remove king
+                f.setPiece(null);
+                boolean atk = false;
+                // Disable attacked fields
+                for (int i = 0; i < 9; i++) {
+                    for (int j = 0; j < 9; j++) {
+                        if (board[i][j].getPiece() != null && board[i][j].getPiece().getOwner() == turn) {
+                            Piece attacker = board[i][j].getPiece();
+                            if (attacker.canMove(board[i][j], t, this)) {
+                                attackers.add(board[i][j]);
+                                atk = true;
+                            }
+                        }
+                    }
+                }
+                isAttacked.add(atk);
+                f.setPiece(king);
+            }
+
+            // Check if we can kill attackers
+            for (Field t : attackers) {
+                for (int i = 0; i < 9; i++) {
+                    for (int j = 0; j < 9; j++) {
+                        if (board[i][j].getPiece() != null && board[i][j].getPiece().getOwner() != turn) {
+                            Piece defender = board[i][j].getPiece();
+                            if (defender.canMove(board[i][j], t, this)) {
+                                attackers.add(board[i][j]);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            System.out.println("====[Mate Log]====");
+            int c = 0;
+            for (Field m : legalKingMoves) {
+                System.out.println("Move: [" + m.row() + ";" + m.col() + "] Attacked: " + (isAttacked.get(c) ? "Yes" : "No"));
+                c++;
+            }
+            System.out.println("==================");
+
+            // Count disabled moves
+            int count = 0;
+            for (Boolean b : isAttacked)
+                if (b) count++;
+
+            if (count == legalKingMoves.size()) {
+                System.out.println("Mate Found, Winner: [" + turn + "]");
+                return true;
+            }
+        }
+
+        System.out.println("No Mate Found!");
+        return false;
+        }
+
+    /**
+     * Ellenőrzi, hogy sakkban van-e az ellenfél.
+     * @param turn Soron lévő játékos.
+     * @return Sakkban van-e az ellenfél.
+     */
+    private boolean isCheck(int turn) {
+        Field king = findEnemyKing(turn);
+        if (king != null) {
+            for (int i = 0; i < 9; i++) {
+                for (int j = 0; j < 9; j++) {
+                    Field f = board[i][j];
+                    if (f.getPiece() != null && f != king) {
+                        if (f.getPiece().canMove(f, king, this)) {
+                            if(log)System.out.println("Check from piece at [" + f.row() + ";" + f.col() + "]");
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A Shogi szabályai szerint elhelyezi az egységeket a játékmenet elején.
+     */
+    private void setupBoard() {
         // Add Pawns
         for (int i = 0; i < 9; i++) {
             board[2][i].setPiece(new Pawn(1));
@@ -70,224 +318,24 @@ public class Board implements Serializable {
         board[7][1].setPiece(new Bishop(2));
     }
 
-    public boolean movePiece(Field s, Field t, int turn, int check) {
-        // TODO: Force king move in check
-        Piece p = s.getPiece();
-
-        boolean isOwner = p.getOwner() == turn;
-        boolean isMove = s.col() != t.col() || s.row() != t.row();
-        boolean canMove = p.canMove(s, t, this);
-        boolean isPromotionRow = (t.row() <= 2 && p.getOwner() == 2) || (t.row() >= 6 && p.getOwner() == 1);
-        boolean isDrop = (s.col() == 99 && s.row() == 99);
-
-        if (isOwner && isMove) {
-            if (canMove) {
-                // Promotion
-                if (isPromotionRow) {
-                    s.getPiece().promote();
-                }
-                // Capture
-                if (t.getPiece() != null) {
-                    if (t.getPiece().getOwner() != p.getOwner()) {
-                        t.getPiece().setOwner(turn);
-                        hands[p.getOwner() - 1].addPiece(t.getPiece());
-                    }
-                }
-
-                s.setPiece(null);
-                t.setPiece(p);
-
-                isCheck(turn);
-
-                checkMates();
-
-                return true;
-            }
-        }
-        if (isDrop) {
-            System.out.println(s.getPiece().getOwner());
-            System.out.println(p.getOwner());
-
-            Piece temp = p;
-
-            System.out.println("Dropping to {" + t.row() + ";" + t.col() + "}");
-
-            // Check if dropped on piece
-            if (t.getPiece() != null) {
-                System.out.println("Illegal drop: Drop on piece");
-                s.setPiece(null);
-                hands[turn-1].addPiece(p);
-                return false;
-            }
-            else {
-                temp.setOwner(turn);
-                t.setPiece(temp);
-                boolean isCheck = isCheck(turn);
-                t.setPiece(null);
-
-                // Confirm pawn rule
-                if (temp.getType().equals("Pawn")) {
-                    for (int i = 0; i < 9; i++) {
-                        if (board[i][t.col()].getPiece() != null) {
-                            if (board[i][t.col()].getPiece().getType().equals("Pawn")) {
-                                if (board[i][t.col()].getPiece().getOwner() == temp.getOwner()) {
-                                    System.out.println("Illegal drop: Pawn already in column.");
-                                    s.setPiece(null);
-                                    hands[turn-1].addPiece(p);
-                                    return false;
-                                }
-                            }
-                        }
-                    }
-                }
-                // Confirm check rule
-                if (isCheck) {
-                    System.out.println("Illegal drop: Results in check.");
-                    s.setPiece(null);
-                    hands[turn-1].addPiece(p);
-                    return false;
-                }
-
-                // Legal drop
-                System.out.println("Successful drop.");
-                p.setOwner(turn);
-                s.setPiece(null);
-                t.setPiece(p);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private Field findEnemyKing(int turn) {
-        for (int i = 0; i < 9; i++) {
-            for (int j = 0; j < 9; j++) {
-                if (board[i][j].getPiece() != null) {
-                    if (board[i][j].getPiece().getOwner() != turn && board[i][j].getPiece().getType().equals("King")) {
-                        return board[i][j];
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private boolean isCheck(int turn) {
-        Field king = findEnemyKing(turn);
-
-        if (king != null) {
-            for (int i = 0; i < 9; i++) {
-                for (int j = 0; j < 9; j++) {
-                    Field f = board[i][j];
-                    if (f.getPiece() != null && f != king) {
-                        if (f.getPiece().canMove(f, king, this)) {
-                            System.out.println("Check from piece at [" + f.row() + ";" + f.col() + "]");
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private int checkMates() {
-        if (isMate(1)) {
-            return 2;
-        }
-        if (isMate(2)) {
-            return 1;
-        }
-        return 0;
-    }
-
-    private boolean isMate(int turn) {
-        Field f = findEnemyKing(turn);
-
-        // Find any potential attackers for all valid king moves
-        // 1) Get valid king move positions
-        // 2) Check for attackers at valid move
-        // 3) If attacked "disable" choice
-        // 4) If all choices are "disabled" mate
-        // TODO: "move" king while checking if king would be attacked @ valid move
-
-        if (f != null && f.getPiece() != null) {
-            Piece king = f.getPiece();
-            ArrayList<Field> validKingMoves = new ArrayList<Field>();
-            ArrayList<Boolean> isAttacked = new ArrayList<Boolean>();
-
-            // Get valid king moves
-            for (int dr = 0; dr < 3; dr++) {
-                for (int dc = 0; dc < 3; dc++) {
-                    if (f.row() + dr - 1 >= 0 && f.col() + dc -1 >= 0 && f.row() + dr - 1 < 9 && f.col() + dc - 1 < 9) {
-                        Field target = board[f.row()+dr-1][f.col()+dc-1];
-                        if (king.canMove(f, target, this)) {
-                            validKingMoves.add(target);
-                        }
-                    }
-                }
-            }
-
-            // Check for attackers at valid moves
-            for (Field t : validKingMoves) {
-                boolean atk = false;
-                // Disable attacked fields
-                for (int i = 0; i < 9; i++) {
-                    for (int j = 0; j < 9; j++) {
-                        if (board[i][j].getPiece() != null && board[i][j].getPiece().getOwner() == turn) {
-                            Piece attacker = board[i][j].getPiece();
-                            if (attacker.canMove(board[i][j], t, this)) {
-                                atk = true;
-                            }
-                        }
-                    }
-                }
-                isAttacked.add(atk);
-            }
-
-            System.out.println("====[Mate Log]====");
-            int c = 0;
-            for (Field m : validKingMoves) {
-                System.out.println("Move: [" + m.row() + ";" + m.col() + "] Attacked: " + (isAttacked.get(c) ? "Yes" : "No"));
-                c++;
-            }
-            System.out.println("==================");
-
-            // Count disabled moves
-            int count = 0;
-            for (Boolean b : isAttacked)
-                if (b) count++;
-
-            if (count == validKingMoves.size()) {
-                System.out.println("Mate Found, Winner: [" + turn + "]");
-                return true;
-            }
-        }
-
-        System.out.println("No Mate Found!");
-        return false;
-    }
-
+    /**
+     * A játéktábla egy mezőjét adja vissza.
+     * @param i Sor
+     * @param j Oszlop
+     * @return A keresett mező.
+     */
     public Field getField(int i, int j) {
-        return board[i][j];
+        if(i >= 0 && i < 9 && j >= 0 && j < 9) return board[i][j];
+        else return null;
     }
 
-    public Hand getHand(int owner) { return hands[owner]; }
-
-    public void print() {
-        StringBuilder output = new StringBuilder();
-        for (int i = 0; i < 9; i++) {
-            for (int j = 0; j < 9; j++) {
-                if (board[i][j].getPiece() == null)
-                    output.append("+");
-                else
-                    output.append(board[i][j].getPiece().getSymbol());
-            }
-            output.append("\n");
-        }
-        System.out.println(output);
+    /**
+     * Egy játékos "kezét" adja vissza.
+     * @param owner A kéz tulajdonosa
+     * @return A kéz.
+     */
+    public Hand getHand(int owner) {
+        if (owner >= 0 && owner < 2) return hands[owner];
+        else return null;
     }
-
 }
