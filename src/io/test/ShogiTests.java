@@ -14,6 +14,6 @@ import org.junit.runners.Suite;
 public class ShogiTests {
     @AfterClass
     public static void message() {
-        System.out.println("These tests really did came in like a lion.");
+        System.out.println("These tests really did come in like a lion.");
     }
 }

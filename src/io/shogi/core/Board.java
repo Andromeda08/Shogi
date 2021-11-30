@@ -3,6 +3,7 @@ package io.shogi.core;
 import io.shogi.pieces.*;
 
 import javax.print.attribute.standard.DateTimeAtCompleted;
+import javax.swing.*;
 import java.io.Serializable;
 import java.util.ArrayList;
 
@@ -47,6 +48,7 @@ public class Board implements Serializable {
     public boolean movePiece(Field s, Field t, int turn) {
         if (s.getPiece() != null) {
             Piece p = s.getPiece();
+            PieceType pt = p.getType();
 
             boolean isOwner = p.getOwner() == turn;
             boolean isMove = s.col() != t.col() || s.row() != t.row();
@@ -62,9 +64,6 @@ public class Board implements Serializable {
                     }
                     // Capture
                     if (t.getPiece() != null) {
-                        if (t.getPiece().getType() == PieceType.OSHO) {
-                            System.out.println("Player [" + turn + "] wins!");
-                        }
                         if (t.getPiece().getOwner() != p.getOwner()) {
                             t.getPiece().setOwner(turn);
                             hands[p.getOwner() - 1].addPiece(t.getPiece());
@@ -74,12 +73,15 @@ public class Board implements Serializable {
                     s.setPiece(null);
                     t.setPiece(p);
 
-                    if(isCheck(turn)) {
-                        hasLegalMoves(turn);
+                    // Mate check
+                    if(!hasLegalMoves(turn)) {
+                        // End game & Close window
+                        JOptionPane.showMessageDialog(null, "Player [" + p.getOwner() + "] wins!", "Game Over!", JOptionPane.INFORMATION_MESSAGE);
+                        System.exit(0);
                     }
 
                     if (isCheck((turn == 2) ? 1: 2)) {
-                        System.out.println("You are in check, make a good move you fuck");
+                        System.out.println("You are in check, make a legal move please.");
                         s.setPiece(p);
                         t.setPiece(null);
                         return false;
@@ -94,19 +96,25 @@ public class Board implements Serializable {
 
                 // Check if we are dropping on an already occupied field
                 if (t.getPiece() != null) {
-                    System.out.println("Illegal drop: Field already occupied.");
                     s.setPiece(null);
                     hands[turn-1].addPiece(p);
+                    if(log) System.out.println("Illegal drop: Field already occupied.");
                     return false;
                 }
                 else {
+                    // Evaluate other rules
                     t.setPiece(p);
-
                     boolean isCheck = isCheck(turn);
                     boolean isPawn = p.getType() == PieceType.FUHYO;
-
                     t.setPiece(null);
 
+                    // Check for bad row drops
+                    if (isBadRowDrop(turn, pt, t)) {
+                        s.setPiece(null);
+                        hands[turn-1].addPiece(p);
+                        if (log) System.out.println("Illegal drop: Piece wouldn't have any legal moves.");
+                        return false;
+                    }
                     // Check if there is already a pawn in the column where we are dropping
                     if (isPawn) {
                         for (int i = 0; i < 9; i++) {
@@ -115,7 +123,6 @@ public class Board implements Serializable {
                                     if (board[i][t.col()].getPiece().getOwner() == p.getOwner()) {
                                         s.setPiece(null);
                                         hands[turn-1].addPiece(p);
-
                                         if (log) System.out.println("Illegal drop: Pawn already in column.");
                                         return false;
                                     }
@@ -127,16 +134,13 @@ public class Board implements Serializable {
                     if (isCheck) {
                         s.setPiece(null);
                         hands[turn-1].addPiece(p);
-
                         if (log) System.out.println("Illegal drop: Results in check.");
                         return false;
                     }
 
                     // Drop was legal
-                    if (isPromotionRow) p.promote();
                     s.setPiece(null);
                     t.setPiece(p);
-
                     if (log) System.out.println("Successful drop.");
                     return true;
                 }
@@ -164,6 +168,11 @@ public class Board implements Serializable {
         return null;
     }
 
+    /**
+     * Kideríti van-e legális lépése egy sakkban lévő játékosnak.
+     * @param turn Soron lévő játékos.
+     * @return Van-e legális lépése a sakkban lévő játékosnak
+     */
     private boolean hasLegalMoves(int turn) {
         if (!isCheck(turn)) {
             return true;
@@ -240,12 +249,12 @@ public class Board implements Serializable {
 
             if (count == legalKingMoves.size()) {
                 System.out.println("Mate Found, Winner: [" + turn + "]");
-                return true;
+                return false;
             }
         }
 
         System.out.println("No Mate Found!");
-        return false;
+        return true;
         }
 
     /**
@@ -267,6 +276,29 @@ public class Board implements Serializable {
                     }
                 }
             }
+        }
+        return false;
+    }
+
+    /**
+     * Ellenőrzi az egységelhelyezés sorokra vonatkozó szabályát.
+     * @param turn Soron lévő játékos.
+     * @param pt Tesztelendő egység tipusa.
+     * @param t Célmező
+     * @return Elhelyezhető?
+     */
+    private boolean isBadRowDrop(int turn, PieceType pt, Field t) {
+        if (pt == PieceType.FUHYO || pt == PieceType.KYOUSHA) {
+            if (turn == 2 && t.row() == 0)
+                return true;
+            if (turn == 1 && t.row() == 8)
+                return true;
+        }
+        if (pt == PieceType.KEIMA) {
+            if (turn == 2 && t.row() <= 1)
+                return true;
+            if (turn == 1 && t.row() >= 7)
+                return true;
         }
         return false;
     }

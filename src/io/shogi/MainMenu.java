@@ -41,7 +41,7 @@ public class MainMenu extends JFrame {
      * @return : Létezik-e mentett játékmenet.
      */
     private boolean checkForSavedGame() {
-        File gameSave = new File("test.save");
+        File gameSave = new File("game.save");
         return gameSave.exists();
     }
 
